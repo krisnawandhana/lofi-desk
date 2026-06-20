@@ -20,7 +20,7 @@ type TaskState = {
   setActiveTask: (id: string) => void
   toggleTask: (id: string) => void
   deleteTask: (id: string) => void
-  completeActivePomodoro: () => void
+  completePomodoro: (taskId: string | null) => void
 }
 
 const now = new Date().toISOString()
@@ -57,7 +57,7 @@ const initialTasks: Task[] = [
 
 export const useTaskStore = create<TaskState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       tasks: initialTasks,
       activeTaskId: initialTasks[0].id,
 
@@ -112,13 +112,12 @@ export const useTaskStore = create<TaskState>()(
         activeTaskId: state.activeTaskId === id ? null : state.activeTaskId,
       })),
 
-      completeActivePomodoro: () => {
-        const { activeTaskId } = get()
-        if (!activeTaskId) return
+      completePomodoro: (taskId) => {
+        if (!taskId) return
 
         set((state) => ({
           tasks: state.tasks.map((task) => {
-            if (task.id !== activeTaskId || task.status === 'done') return task
+            if (task.id !== taskId || task.status === 'done') return task
             const completedPomodoro = task.completedPomodoro + 1
             return {
               ...task,
@@ -128,9 +127,9 @@ export const useTaskStore = create<TaskState>()(
             }
           }),
           activeTaskId: state.tasks.some((task) =>
-            task.id === activeTaskId && task.completedPomodoro + 1 >= task.estimatedPomodoro)
+            task.id === taskId && task.completedPomodoro + 1 >= task.estimatedPomodoro)
             ? null
-            : activeTaskId,
+            : state.activeTaskId,
         }))
       },
     }),

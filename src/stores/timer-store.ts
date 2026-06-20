@@ -12,6 +12,8 @@ type TimerState = {
   isRunning: boolean
   endsAt: number | null
   startedAt: number | null
+  sessionTaskId: string | null
+  sessionTaskTitle: string | null
   completedFocusSessions: number
   setMode: (mode: TimerMode) => void
   start: () => void
@@ -33,6 +35,8 @@ export const useTimerStore = create<TimerState>((set, get) => ({
   isRunning: false,
   endsAt: null,
   startedAt: null,
+  sessionTaskId: null,
+  sessionTaskTitle: null,
   completedFocusSessions: 2,
 
   setMode: (mode) => set({
@@ -41,16 +45,26 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     isRunning: false,
     endsAt: null,
     startedAt: null,
+    sessionTaskId: null,
+    sessionTaskTitle: null,
   }),
 
   start: () => {
-    const { isRunning, remainingSeconds, startedAt } = get()
+    const { isRunning, remainingSeconds, startedAt, mode } = get()
     if (isRunning || remainingSeconds <= 0) return
+
+    const activeTask = mode === 'focus' && startedAt === null
+      ? useTaskStore.getState().tasks.find((task) => task.id === useTaskStore.getState().activeTaskId)
+      : null
 
     set({
       isRunning: true,
       endsAt: Date.now() + remainingSeconds * 1000,
       startedAt: startedAt ?? Date.now(),
+      ...(startedAt === null ? {
+        sessionTaskId: activeTask?.id ?? null,
+        sessionTaskTitle: activeTask?.title ?? null,
+      } : {}),
     })
   },
 
@@ -72,6 +86,8 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       isRunning: false,
       endsAt: null,
       startedAt: null,
+      sessionTaskId: null,
+      sessionTaskTitle: null,
     })
   },
 
@@ -84,11 +100,13 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       isRunning: false,
       endsAt: null,
       startedAt: null,
+      sessionTaskId: null,
+      sessionTaskTitle: null,
     })
   },
 
   tick: () => {
-    const { isRunning, endsAt, startedAt, mode, completedFocusSessions } = get()
+    const { isRunning, endsAt, startedAt, mode, completedFocusSessions, sessionTaskId, sessionTaskTitle } = get()
     if (!isRunning || endsAt === null) return
 
     const remainingSeconds = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
@@ -101,17 +119,15 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       ? completedFocusSessions + 1
       : completedFocusSessions
     const endedAt = Date.now()
-    const activeTask = useTaskStore.getState().tasks.find((task) =>
-      task.id === useTaskStore.getState().activeTaskId)
     useSessionStore.getState().recordSession({
-      taskId: activeTask?.id,
-      taskTitle: activeTask?.title,
+      taskId: sessionTaskId ?? undefined,
+      taskTitle: sessionTaskTitle ?? undefined,
       type: mode,
       duration: getTimerDuration(mode),
       startedAt: new Date(startedAt ?? endedAt - getTimerDuration(mode) * 1000).toISOString(),
       endedAt: new Date(endedAt).toISOString(),
     })
-    if (mode === 'focus') useTaskStore.getState().completeActivePomodoro()
+    if (mode === 'focus') useTaskStore.getState().completePomodoro(sessionTaskId)
     const nextMode = getNextMode(mode, completedFocusSessions)
     sendSessionNotification(nextMode)
 
@@ -122,6 +138,8 @@ export const useTimerStore = create<TimerState>((set, get) => ({
       isRunning: false,
       endsAt: null,
       startedAt: null,
+      sessionTaskId: null,
+      sessionTaskTitle: null,
     })
   },
 }))

@@ -130,7 +130,7 @@ export const downloadBackup = () => {
         isMuted: ambience.isMuted,
       },
       music: {
-        trackIndex: music.trackIndex,
+        trackIndex: Math.min(music.trackIndex, MUSIC_TRACKS.length - 1),
         volume: music.volume,
         isMuted: music.isMuted,
       },
